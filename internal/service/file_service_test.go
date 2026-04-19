@@ -17,19 +17,14 @@ func TestFileService_StoreContainer_Success(t *testing.T) {
 	containers := memory.NewContainerStorage()
 	service := NewFileService(users, files, containers)
 
-	if err := users.Create(ctx, domain.User{ID: 1}); err != nil {
-		t.Fatalf("create sender: %v", err)
-	}
-	if err := users.Create(ctx, domain.User{ID: 2}); err != nil {
-		t.Fatalf("create recipient: %v", err)
-	}
+	senderID, _ := users.Create(ctx, domain.User{})
+	recipientID, _ := users.Create(ctx, domain.User{})
 
 	containerBytes := []byte(`{"version":"v1"}`)
 
 	out, err := service.StoreContainer(ctx, domain.StoreContainerInput{
-		ID:             10,
-		SenderID:       1,
-		RecipientID:    2,
+		SenderID:       senderID,
+		RecipientID:    recipientID,
 		ContainerBytes: containerBytes,
 		FileName:       "hello.txt",
 		MimeType:       "text/plain",
@@ -38,19 +33,19 @@ func TestFileService_StoreContainer_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("store container: %v", err)
 	}
-	if out.ID != 10 {
-		t.Fatalf("unexpected output id: got %d want 10", out.ID)
+	if out.ID == 0 {
+		t.Fatal("expected non-zero generated file ID")
 	}
 
-	record, err := files.GetByID(ctx, 10)
+	record, err := files.GetByID(ctx, out.ID)
 	if err != nil {
 		t.Fatalf("load file record: %v", err)
 	}
-	if record.StorageKey != makeStorageKey(10) {
-		t.Fatalf("unexpected storage key: got %q", record.StorageKey)
+	if record.StorageKey == "" {
+		t.Fatal("expected non-empty storage key")
 	}
 
-	storedContainer, err := containers.Get(ctx, makeStorageKey(10))
+	storedContainer, err := containers.Get(ctx, record.StorageKey)
 	if err != nil {
 		t.Fatalf("load container: %v", err)
 	}
@@ -67,14 +62,11 @@ func TestFileService_StoreContainer_FailsWhenSenderNotFound(t *testing.T) {
 	containers := memory.NewContainerStorage()
 	service := NewFileService(users, files, containers)
 
-	if err := users.Create(ctx, domain.User{ID: 2}); err != nil {
-		t.Fatalf("create recipient: %v", err)
-	}
+	recipientID, _ := users.Create(ctx, domain.User{})
 
 	_, err := service.StoreContainer(ctx, domain.StoreContainerInput{
-		ID:             10,
-		SenderID:       1,
-		RecipientID:    2,
+		SenderID:       99999,
+		RecipientID:    recipientID,
 		ContainerBytes: []byte(`{"version":"v1"}`),
 		FileName:       "hello.txt",
 		MimeType:       "text/plain",
@@ -82,38 +74,6 @@ func TestFileService_StoreContainer_FailsWhenSenderNotFound(t *testing.T) {
 	})
 	if !errors.Is(err, repository.ErrUserNotFound) {
 		t.Fatalf("expected ErrUserNotFound, got %v", err)
-	}
-}
-
-func TestFileService_StoreContainer_FailsWhenFileAlreadyExists(t *testing.T) {
-	ctx := context.Background()
-
-	users := memory.NewUserRepository()
-	files := memory.NewFileRepository()
-	containers := memory.NewContainerStorage()
-	service := NewFileService(users, files, containers)
-
-	if err := users.Create(ctx, domain.User{ID: 1}); err != nil {
-		t.Fatalf("create sender: %v", err)
-	}
-	if err := users.Create(ctx, domain.User{ID: 2}); err != nil {
-		t.Fatalf("create recipient: %v", err)
-	}
-	if err := files.Create(ctx, domain.FileRecord{ID: 10}); err != nil {
-		t.Fatalf("seed file: %v", err)
-	}
-
-	_, err := service.StoreContainer(ctx, domain.StoreContainerInput{
-		ID:             10,
-		SenderID:       1,
-		RecipientID:    2,
-		ContainerBytes: []byte(`{"version":"v1"}`),
-		FileName:       "hello.txt",
-		MimeType:       "text/plain",
-		Size:           12,
-	})
-	if !errors.Is(err, repository.ErrFileAlreadyExists) {
-		t.Fatalf("expected ErrFileAlreadyExists, got %v", err)
 	}
 }
 
@@ -125,24 +85,25 @@ func TestFileService_LoadContainer_Success(t *testing.T) {
 	service := NewFileService(memory.NewUserRepository(), files, containers)
 
 	containerBytes := []byte(`{"version":"v1"}`)
-	storageKey := makeStorageKey(10)
+	storageKey := "files/test.container"
 
-	if err := files.Create(ctx, domain.FileRecord{
-		ID:          10,
+	fileID, err := files.Create(ctx, domain.FileRecord{
 		SenderID:    1,
 		RecipientID: 2,
 		StorageKey:  storageKey,
 		FileName:    "hello.txt",
 		MimeType:    "text/plain",
 		Size:        12,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed file record: %v", err)
 	}
+
 	if err := containers.Save(ctx, storageKey, containerBytes); err != nil {
 		t.Fatalf("seed container: %v", err)
 	}
 
-	out, err := service.LoadContainer(ctx, domain.LoadContainerInput{ID: 10})
+	out, err := service.LoadContainer(ctx, domain.LoadContainerInput{ID: fileID})
 	if err != nil {
 		t.Fatalf("load container: %v", err)
 	}
@@ -161,15 +122,15 @@ func TestFileService_LoadContainer_FailsWhenContainerMissing(t *testing.T) {
 	containers := memory.NewContainerStorage()
 	service := NewFileService(memory.NewUserRepository(), files, containers)
 
-	if err := files.Create(ctx, domain.FileRecord{
-		ID:         10,
+	fileID, err := files.Create(ctx, domain.FileRecord{
 		SenderID:   1,
-		StorageKey: makeStorageKey(10),
-	}); err != nil {
+		StorageKey: "files/missing.container",
+	})
+	if err != nil {
 		t.Fatalf("seed file record: %v", err)
 	}
 
-	_, err := service.LoadContainer(ctx, domain.LoadContainerInput{ID: 10})
+	_, err = service.LoadContainer(ctx, domain.LoadContainerInput{ID: fileID})
 	if !errors.Is(err, repository.ErrContainerNotFound) {
 		t.Fatalf("expected ErrContainerNotFound, got %v", err)
 	}

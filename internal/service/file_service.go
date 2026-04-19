@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
-	"cryptocore/internal/domain"
-	"cryptocore/internal/repository"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
+
+	"cryptocore/internal/domain"
+	"cryptocore/internal/repository"
 )
 
 type FileService struct {
@@ -38,21 +41,16 @@ func (s *FileService) StoreContainer(
 		return domain.StoreContainerOutput{}, err
 	}
 
-	exists, err := s.files.Exists(ctx, input.ID)
+	storageKey, err := generateStorageKey()
 	if err != nil {
-		return domain.StoreContainerOutput{}, err
-	}
-	if exists {
-		return domain.StoreContainerOutput{}, repository.ErrFileAlreadyExists
+		return domain.StoreContainerOutput{}, fmt.Errorf("generate storage key: %w", err)
 	}
 
-	storageKey := makeStorageKey(input.ID)
 	if err := s.containers.Save(ctx, storageKey, input.ContainerBytes); err != nil {
 		return domain.StoreContainerOutput{}, err
 	}
 
 	record := domain.FileRecord{
-		ID:          input.ID,
 		Size:        input.Size,
 		SenderID:    input.SenderID,
 		RecipientID: input.RecipientID,
@@ -61,11 +59,13 @@ func (s *FileService) StoreContainer(
 		MimeType:    input.MimeType,
 		CreatedAt:   time.Now(),
 	}
-	if err := s.files.Create(ctx, record); err != nil {
+
+	id, err := s.files.Create(ctx, record)
+	if err != nil {
 		return domain.StoreContainerOutput{}, err
 	}
 
-	return domain.StoreContainerOutput{ID: input.ID}, nil
+	return domain.StoreContainerOutput{ID: id}, nil
 }
 
 func (s *FileService) LoadContainer(
@@ -94,6 +94,10 @@ func (s *FileService) LoadContainer(
 	}, nil
 }
 
-func makeStorageKey(fileID int) string {
-	return fmt.Sprintf("files/%d.container", fileID)
+func generateStorageKey() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "files/" + hex.EncodeToString(b) + ".container", nil
 }

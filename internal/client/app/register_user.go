@@ -19,8 +19,7 @@ func NewRegisterUserService(store *keystore.Store) *RegisterUserService {
 }
 
 type RegisterUserInput struct {
-	ServerURL string
-	UserID    int
+	Username string
 }
 
 type RegisterUserOutput struct {
@@ -39,9 +38,9 @@ func (s *RegisterUserService) Register(ctx context.Context, input RegisterUserIn
 		return RegisterUserOutput{}, err
 	}
 
-	client := clientapi.NewClient(input.ServerURL)
+	client := clientapi.NewClient(ServerURL)
 	out, err := client.CreateUser(ctx, clientapi.CreateUserInput{
-		ID:                  input.UserID,
+		Username:            input.Username,
 		EncryptionPublicKey: encryptionPub,
 		SigningPublicKey:    &signingPriv.PublicKey,
 	})
@@ -60,8 +59,9 @@ func (s *RegisterUserService) Register(ctx context.Context, input RegisterUserIn
 	}
 
 	if err := s.store.Save(keystore.Profile{
-		ServerURL:            input.ServerURL,
-		UserID:               input.UserID,
+		ServerURL:            ServerURL,
+		UserID:               out.ID,
+		Username:             input.Username,
 		EncryptionPrivateKey: encryptionPriv.Bytes(),
 		SigningPrivateKey:    signingPrivRaw,
 		EncryptionPublicKey:  encryptionPub.Bytes(),
@@ -70,7 +70,6 @@ func (s *RegisterUserService) Register(ctx context.Context, input RegisterUserIn
 		return RegisterUserOutput{}, err
 	}
 
-	// Сразу после регистрации выполняем challenge-response, чтобы получить session token.
 	loginSvc := NewLoginService(s.store)
 	loginOut, err := loginSvc.Login(ctx)
 	if err != nil {

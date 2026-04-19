@@ -19,20 +19,19 @@ func NewFileRepository(pool *pgxpool.Pool) *FileRepository {
 	return &FileRepository{pool: pool}
 }
 
-func (r *FileRepository) Create(ctx context.Context, file domain.FileRecord) error {
-	_, err := r.pool.Exec(ctx,
-		`INSERT INTO file_records (id, size, sender_id, recipient_id, storage_key, file_name, mime_type, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		file.ID, file.Size, file.SenderID, file.RecipientID,
+func (r *FileRepository) Create(ctx context.Context, file domain.FileRecord) (int, error) {
+	var id int
+	err := r.pool.QueryRow(ctx,
+		`INSERT INTO file_records (size, sender_id, recipient_id, storage_key, file_name, mime_type, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id`,
+		file.Size, file.SenderID, file.RecipientID,
 		file.StorageKey, file.FileName, file.MimeType, file.CreatedAt,
-	)
+	).Scan(&id)
 	if err != nil {
-		if isDuplicateKey(err) {
-			return repository.ErrFileAlreadyExists
-		}
-		return err
+		return 0, err
 	}
-	return nil
+	return id, nil
 }
 
 func (r *FileRepository) GetByID(ctx context.Context, id int) (domain.FileRecord, error) {

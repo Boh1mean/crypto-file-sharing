@@ -14,7 +14,6 @@ type FileRecord struct {
 }
 
 type StoreContainerInput struct {
-	ID             int
 	SenderID       int
 	RecipientID    int
 	ContainerBytes []byte

@@ -76,6 +76,7 @@ func (s *Store) LoadIdentity() (Identity, error) {
 	return Identity{
 		ServerURL:            profile.ServerURL,
 		UserID:               profile.UserID,
+		Username:             profile.Username,
 		EncryptionPrivateKey: encryptionPrivateKey,
 		SigningPrivateKey:    signingPrivateKey,
 		SessionToken:         profile.SessionToken,

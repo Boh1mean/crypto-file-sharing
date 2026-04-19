@@ -6,11 +6,13 @@ import (
 	"cryptocore/internal/repository"
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 type UserRepository struct {
-	mu    sync.RWMutex
-	users map[int]domain.User
+	mu      sync.RWMutex
+	users   map[int]domain.User
+	counter atomic.Int64
 }
 
 func NewUserRepository() *UserRepository {
@@ -19,22 +21,20 @@ func NewUserRepository() *UserRepository {
 	}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user domain.User) error {
+func (r *UserRepository) Create(ctx context.Context, user domain.User) (int, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	default:
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.users[user.ID]; exists {
-		return repository.ErrUserAlreadyExists
-	}
-
-	r.users[user.ID] = user
-	return nil
+	id := int(r.counter.Add(1))
+	user.ID = id
+	r.users[id] = user
+	return id, nil
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int) (domain.User, error) {
@@ -53,6 +53,25 @@ func (r *UserRepository) GetByID(ctx context.Context, id int) (domain.User, erro
 	}
 
 	return user, nil
+}
+
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (domain.User, error) {
+	select {
+	case <-ctx.Done():
+		return domain.User{}, ctx.Err()
+	default:
+	}
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, user := range r.users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+
+	return domain.User{}, repository.ErrUserNotFound
 }
 
 func (r *UserRepository) Update(ctx context.Context, user domain.User) error {

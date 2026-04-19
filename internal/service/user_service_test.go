@@ -28,18 +28,18 @@ func TestUserService_CreateAndGetPublicKeys_Success(t *testing.T) {
 	service := NewUserService(users)
 
 	out, err := service.CreateUser(ctx, domain.CreateUserInput{
-		ID:                  1,
+		Username:            "alice",
 		EncryptionPublicKey: encryptionPub,
 		SigningPublicKey:    &signingPriv.PublicKey,
 	})
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	if out.ID != 1 {
-		t.Fatalf("unexpected output id: got %d want 1", out.ID)
+	if out.ID == 0 {
+		t.Fatal("expected non-zero generated ID")
 	}
 
-	keys, err := service.GetUserPublicKeys(ctx, domain.GetUserPublicKeysInput{ID: 1})
+	keys, err := service.GetUserPublicKeys(ctx, domain.GetUserPublicKeysInput{ID: out.ID})
 	if err != nil {
 		t.Fatalf("get user public keys: %v", err)
 	}

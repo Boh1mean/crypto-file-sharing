@@ -49,7 +49,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := h.users.CreateUser(r.Context(), domain.CreateUserInput{
-		ID:                  req.ID,
+		Username:            req.Username,
 		EncryptionPublicKey: encryptionPublicKey,
 		SigningPublicKey:    signingPublicKey,
 	})
@@ -83,6 +83,34 @@ func (h *Handler) GetUserPublicKeys(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, getUserPublicKeysResponse{
 		ID:                  out.ID,
+		Username:            out.Username,
+		EncryptionPublicKey: encryptionPublicKey,
+		SigningPublicKey:    base64.StdEncoding.EncodeToString(signingPublicKey),
+	})
+}
+
+func (h *Handler) GetUserByUsername(w http.ResponseWriter, r *http.Request) {
+	username := r.PathValue("username")
+	if username == "" {
+		writeError(w, http.StatusBadRequest, errors.New("username is required"))
+		return
+	}
+
+	out, err := h.users.GetUserByUsername(r.Context(), domain.GetUserByUsernameInput{Username: username})
+	if err != nil {
+		writeMappedError(w, err)
+		return
+	}
+
+	encryptionPublicKey := base64.StdEncoding.EncodeToString(out.EncryptionPublicKey.Bytes())
+	signingPublicKey, err := x509.MarshalPKIXPublicKey(out.SigningPublicKey)
+	if err != nil {
+		writeMappedError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, getUserByUsernameResponse{
+		ID:                  out.ID,
 		EncryptionPublicKey: encryptionPublicKey,
 		SigningPublicKey:    base64.StdEncoding.EncodeToString(signingPublicKey),
 	})
@@ -102,7 +130,6 @@ func (h *Handler) StoreContainer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := h.files.StoreContainer(r.Context(), domain.StoreContainerInput{
-		ID:             req.ID,
 		SenderID:       req.SenderID,
 		RecipientID:    req.RecipientID,
 		ContainerBytes: containerBytes,

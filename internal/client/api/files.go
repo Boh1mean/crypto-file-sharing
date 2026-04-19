@@ -9,7 +9,6 @@ import (
 )
 
 type StoreContainerInput struct {
-	ID             int
 	SenderID       int
 	RecipientID    int
 	ContainerBytes []byte
@@ -36,7 +35,6 @@ type LoadContainerOutput struct {
 func (c *Client) StoreContainer(ctx context.Context, input StoreContainerInput) (StoreContainerOutput, error) {
 	var out storeContainerResponse
 	err := c.doJSON(ctx, http.MethodPost, "/files", storeContainerRequest{
-		ID:          input.ID,
 		SenderID:    input.SenderID,
 		RecipientID: input.RecipientID,
 		Container:   base64.StdEncoding.EncodeToString(input.ContainerBytes),

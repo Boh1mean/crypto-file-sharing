@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -14,67 +13,54 @@ import (
 )
 
 func NewRegisterScreen(window fyne.Window, registerService *clientapp.RegisterUserService) fyne.CanvasObject {
-	serverEntry := widget.NewEntry()
-	serverEntry.SetPlaceHolder("http://localhost:8080")
-	serverEntry.SetText("http://localhost:8080")
+	usernameEntry := widget.NewEntry()
+	usernameEntry.SetPlaceHolder("например: alice")
 
-	userIDEntry := widget.NewEntry()
-	userIDEntry.SetPlaceHolder("1")
-	userIDEntry.SetText("1")
-
-	statusLabel := widget.NewLabel("Enter server URL and user ID, then register.")
+	statusLabel := widget.NewLabel("Введите никнейм и нажмите Register.")
 
 	var registerButton *widget.Button
 	registerButton = widget.NewButton("Generate Keys And Register", func() {
-		serverURL := strings.TrimSpace(serverEntry.Text)
-		if serverURL == "" {
-			dialog.ShowError(errMessage("server URL is required"), window)
+		username := strings.TrimSpace(usernameEntry.Text)
+		if username == "" {
+			dialog.ShowError(errMessage("никнейм не может быть пустым"), window)
 			return
 		}
-
-		rawUserID := strings.TrimSpace(userIDEntry.Text)
-		if rawUserID == "" {
-			dialog.ShowError(errMessage("user ID is required"), window)
-			return
-		}
-
-		userID, err := strconv.Atoi(rawUserID)
-		if err != nil {
-			dialog.ShowError(errMessage("user ID must be a number"), window)
+		if len([]rune(username)) > 32 {
+			dialog.ShowError(errMessage("никнейм не может быть длиннее 32 символов"), window)
 			return
 		}
 
 		registerButton.Disable()
-		statusLabel.SetText("Registering user and saving local profile...")
+		statusLabel.SetText("Регистрация пользователя и сохранение локального профиля...")
 
 		go func() {
-			_, err := registerService.Register(context.Background(), clientapp.RegisterUserInput{
-				ServerURL: serverURL,
-				UserID:    userID,
+			out, err := registerService.Register(context.Background(), clientapp.RegisterUserInput{
+				Username: username,
 			})
 
 			fyne.Do(func() {
 				registerButton.Enable()
 				if err != nil {
-					statusLabel.SetText("Registration failed.")
+					statusLabel.SetText("Регистрация не удалась.")
 					dialog.ShowError(err, window)
 					return
 				}
 
-				statusLabel.SetText("Registration completed. Keys are stored locally.")
-				dialog.ShowInformation("Success", "User registered and local keys saved.", window)
+				statusLabel.SetText("Регистрация завершена. Ключи сохранены локально.")
+				dialog.ShowInformation("Успех",
+					"Пользователь зарегистрирован!\nВаш ID: "+itoa(out.UserID),
+					window)
 			})
 		}()
 	})
 
 	form := widget.NewForm(
-		widget.NewFormItem("Server URL", serverEntry),
-		widget.NewFormItem("User ID", userIDEntry),
+		widget.NewFormItem("Никнейм", usernameEntry),
 	)
 
 	return container.NewVBox(
 		widget.NewLabel("CryptoCore Desktop"),
-		widget.NewLabel("First step: generate local keys and register only public keys on the server."),
+		widget.NewLabel("Шаг 1: введите никнейм, сгенерируйте ключи и зарегистрируйтесь на сервере."),
 		form,
 		registerButton,
 		statusLabel,

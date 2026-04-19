@@ -13,7 +13,7 @@ import (
 )
 
 type CreateUserInput struct {
-	ID                  int
+	Username            string
 	EncryptionPublicKey *ecdh.PublicKey
 	SigningPublicKey    *ecdsa.PublicKey
 }
@@ -36,7 +36,7 @@ func (c *Client) CreateUser(ctx context.Context, input CreateUserInput) (CreateU
 
 	var out createUserResponse
 	err = c.doJSON(ctx, http.MethodPost, "/users", createUserRequest{
-		ID:                  input.ID,
+		Username:            input.Username,
 		EncryptionPublicKey: base64.StdEncoding.EncodeToString(input.EncryptionPublicKey.Bytes()),
 		SigningPublicKey:    base64.StdEncoding.EncodeToString(signingPubRaw),
 	}, &out)
@@ -49,11 +49,24 @@ func (c *Client) CreateUser(ctx context.Context, input CreateUserInput) (CreateU
 
 func (c *Client) GetUserPublicKeys(ctx context.Context, id int) (GetUserPublicKeysOutput, error) {
 	var out getUserPublicKeysResponse
-	if err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/users/%d/public-keys", id), nil, &out); err != nil {
+	if err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/users/%d", id), nil, &out); err != nil {
 		return GetUserPublicKeysOutput{}, err
 	}
 
-	encryptionPubRaw, err := base64.StdEncoding.DecodeString(out.EncryptionPublicKey)
+	return decodePublicKeysResponse(out.ID, out.EncryptionPublicKey, out.SigningPublicKey)
+}
+
+func (c *Client) GetUserPublicKeysByUsername(ctx context.Context, username string) (GetUserPublicKeysOutput, error) {
+	var out getUserByUsernameResponse
+	if err := c.doJSON(ctx, http.MethodGet, "/users/by-username/"+username, nil, &out); err != nil {
+		return GetUserPublicKeysOutput{}, err
+	}
+
+	return decodePublicKeysResponse(out.ID, out.EncryptionPublicKey, out.SigningPublicKey)
+}
+
+func decodePublicKeysResponse(id int, encKeyB64, sigKeyB64 string) (GetUserPublicKeysOutput, error) {
+	encryptionPubRaw, err := base64.StdEncoding.DecodeString(encKeyB64)
 	if err != nil {
 		return GetUserPublicKeysOutput{}, err
 	}
@@ -63,7 +76,7 @@ func (c *Client) GetUserPublicKeys(ctx context.Context, id int) (GetUserPublicKe
 		return GetUserPublicKeysOutput{}, err
 	}
 
-	signingPubRaw, err := base64.StdEncoding.DecodeString(out.SigningPublicKey)
+	signingPubRaw, err := base64.StdEncoding.DecodeString(sigKeyB64)
 	if err != nil {
 		return GetUserPublicKeysOutput{}, err
 	}
@@ -79,7 +92,7 @@ func (c *Client) GetUserPublicKeys(ctx context.Context, id int) (GetUserPublicKe
 	}
 
 	return GetUserPublicKeysOutput{
-		ID:                  out.ID,
+		ID:                  id,
 		EncryptionPublicKey: encryptionPub,
 		SigningPublicKey:    signingPub,
 	}, nil

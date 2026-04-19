@@ -1,7 +1,7 @@
 package api
 
 type createUserRequest struct {
-	ID                  int    `json:"id"`
+	Username            string `json:"username"`
 	EncryptionPublicKey string `json:"encryption_public_key"`
 	SigningPublicKey    string `json:"signing_public_key"`
 }
@@ -12,12 +12,18 @@ type createUserResponse struct {
 
 type getUserPublicKeysResponse struct {
 	ID                  int    `json:"id"`
+	Username            string `json:"username"`
+	EncryptionPublicKey string `json:"encryption_public_key"`
+	SigningPublicKey    string `json:"signing_public_key"`
+}
+
+type getUserByUsernameResponse struct {
+	ID                  int    `json:"id"`
 	EncryptionPublicKey string `json:"encryption_public_key"`
 	SigningPublicKey    string `json:"signing_public_key"`
 }
 
 type storeContainerRequest struct {
-	ID          int    `json:"id"`
 	SenderID    int    `json:"sender_id"`
 	RecipientID int    `json:"recipient_id"`
 	Container   string `json:"container"`

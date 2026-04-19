@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -15,18 +14,13 @@ import (
 )
 
 func NewSendScreen(window fyne.Window, sendService *clientapp.SendFileService) fyne.CanvasObject {
-	fileIDEntry := widget.NewEntry()
-	fileIDEntry.SetPlaceHolder("1001")
-	fileIDEntry.SetText("1001")
-
-	recipientIDEntry := widget.NewEntry()
-	recipientIDEntry.SetPlaceHolder("2")
-	recipientIDEntry.SetText("2")
+	recipientEntry := widget.NewEntry()
+	recipientEntry.SetPlaceHolder("никнейм получателя")
 
 	filePathEntry := widget.NewEntry()
-	filePathEntry.SetPlaceHolder("/path/to/file.txt")
+	filePathEntry.SetPlaceHolder("/путь/к/файлу")
 
-	chooseFileButton := widget.NewButton("Choose File", func() {
+	chooseFileButton := widget.NewButton("Выбрать файл", func() {
 		fileDialog := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, window)
@@ -42,73 +36,55 @@ func NewSendScreen(window fyne.Window, sendService *clientapp.SendFileService) f
 		fileDialog.Show()
 	})
 
-	statusLabel := widget.NewLabel("Choose a file and send it to a registered recipient.")
+	statusLabel := widget.NewLabel("Выберите файл и введите никнейм получателя.")
 
 	var sendButton *widget.Button
-	sendButton = widget.NewButton("Encrypt And Send", func() {
-		rawFileID := strings.TrimSpace(fileIDEntry.Text)
-		if rawFileID == "" {
-			dialog.ShowError(errMessage("file ID is required"), window)
-			return
-		}
-
-		fileID, err := strconv.Atoi(rawFileID)
-		if err != nil {
-			dialog.ShowError(errMessage("file ID must be a number"), window)
-			return
-		}
-
-		rawRecipientID := strings.TrimSpace(recipientIDEntry.Text)
-		if rawRecipientID == "" {
-			dialog.ShowError(errMessage("recipient ID is required"), window)
-			return
-		}
-
-		recipientID, err := strconv.Atoi(rawRecipientID)
-		if err != nil {
-			dialog.ShowError(errMessage("recipient ID must be a number"), window)
+	sendButton = widget.NewButton("Зашифровать и отправить", func() {
+		recipient := strings.TrimSpace(recipientEntry.Text)
+		if recipient == "" {
+			dialog.ShowError(errMessage("никнейм получателя не может быть пустым"), window)
 			return
 		}
 
 		filePath := strings.TrimSpace(filePathEntry.Text)
 		if filePath == "" {
-			dialog.ShowError(errMessage("file path is required"), window)
+			dialog.ShowError(errMessage("выберите файл"), window)
 			return
 		}
 
 		sendButton.Disable()
-		statusLabel.SetText("Encrypting file and uploading container...")
+		statusLabel.SetText("Шифрование и загрузка на сервер...")
 
 		go func() {
-			_, err := sendService.Send(context.Background(), clientapp.SendFileInput{
-				FileID:      fileID,
-				RecipientID: recipientID,
-				FilePath:    filePath,
+			out, err := sendService.Send(context.Background(), clientapp.SendFileInput{
+				RecipientUsername: recipient,
+				FilePath:          filePath,
 			})
 
 			fyne.Do(func() {
 				sendButton.Enable()
 				if err != nil {
-					statusLabel.SetText("Send failed.")
+					statusLabel.SetText("Ошибка отправки.")
 					dialog.ShowError(err, window)
 					return
 				}
 
-				statusLabel.SetText("File encrypted and uploaded successfully.")
-				dialog.ShowInformation("Success", "Encrypted container uploaded to the server.", window)
+				statusLabel.SetText("Файл успешно зашифрован и отправлен.")
+				dialog.ShowInformation("Успех",
+					"Файл отправлен!\nID файла для получателя: "+itoa(out.FileID),
+					window)
 			})
 		}()
 	})
 
 	form := widget.NewForm(
-		widget.NewFormItem("File ID", fileIDEntry),
-		widget.NewFormItem("Recipient ID", recipientIDEntry),
-		widget.NewFormItem("File Path", filePathEntry),
+		widget.NewFormItem("Получатель", recipientEntry),
+		widget.NewFormItem("Файл", filePathEntry),
 	)
 
 	return container.NewVBox(
-		widget.NewLabel("Send File"),
-		widget.NewLabel("This uses your locally stored private keys and sends only an encrypted container."),
+		widget.NewLabel("Отправить файл"),
+		widget.NewLabel("Файл будет зашифрован локально перед отправкой."),
 		form,
 		chooseFileButton,
 		sendButton,

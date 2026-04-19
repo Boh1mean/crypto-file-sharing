@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -105,32 +104,20 @@ func buildRegisterView(
 	onSuccess func(),
 	onSwitchToLogin func(),
 ) fyne.CanvasObject {
-	serverEntry := widget.NewEntry()
-	serverEntry.SetPlaceHolder("http://localhost:8080")
-	serverEntry.SetText("http://localhost:8080")
-
-	userIDEntry := widget.NewEntry()
-	userIDEntry.SetPlaceHolder("1")
+	usernameEntry := widget.NewEntry()
+	usernameEntry.SetPlaceHolder("например: alice")
 
 	statusLabel := widget.NewLabel("")
 
 	var registerButton *widget.Button
 	registerButton = widget.NewButton("Create Account", func() {
-		serverURL := strings.TrimSpace(serverEntry.Text)
-		if serverURL == "" {
-			dialog.ShowError(errMessage("server URL is required"), window)
+		username := strings.TrimSpace(usernameEntry.Text)
+		if username == "" {
+			dialog.ShowError(errMessage("никнейм не может быть пустым"), window)
 			return
 		}
-
-		rawUserID := strings.TrimSpace(userIDEntry.Text)
-		if rawUserID == "" {
-			dialog.ShowError(errMessage("user ID is required"), window)
-			return
-		}
-
-		userID, err := strconv.Atoi(rawUserID)
-		if err != nil {
-			dialog.ShowError(errMessage("user ID must be a number"), window)
+		if len([]rune(username)) > 32 {
+			dialog.ShowError(errMessage("никнейм не может быть длиннее 32 символов"), window)
 			return
 		}
 
@@ -138,9 +125,8 @@ func buildRegisterView(
 		statusLabel.SetText("Generating keys and registering...")
 
 		go func() {
-			_, err := registerService.Register(context.Background(), clientapp.RegisterUserInput{
-				ServerURL: serverURL,
-				UserID:    userID,
+			out, err := registerService.Register(context.Background(), clientapp.RegisterUserInput{
+				Username: username,
 			})
 
 			fyne.Do(func() {
@@ -150,6 +136,7 @@ func buildRegisterView(
 					dialog.ShowError(err, window)
 					return
 				}
+				statusLabel.SetText("Registered! Your ID: " + itoa(out.UserID))
 				onSuccess()
 			})
 		}()
@@ -160,8 +147,7 @@ func buildRegisterView(
 	switchButton.Importance = widget.LowImportance
 
 	form := widget.NewForm(
-		widget.NewFormItem("Server URL", serverEntry),
-		widget.NewFormItem("User ID", userIDEntry),
+		widget.NewFormItem("Никнейм", usernameEntry),
 	)
 
 	return container.NewCenter(

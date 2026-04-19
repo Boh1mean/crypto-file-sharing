@@ -9,6 +9,7 @@ import (
 type Profile struct {
 	ServerURL            string    `json:"server_url"`
 	UserID               int       `json:"user_id"`
+	Username             string    `json:"username"`
 	EncryptionPrivateKey []byte    `json:"encryption_private_key"`
 	SigningPrivateKey     []byte    `json:"signing_private_key"`
 	EncryptionPublicKey  []byte    `json:"encryption_public_key"`
@@ -25,6 +26,7 @@ func (p Profile) HasValidSession() bool {
 type Identity struct {
 	ServerURL            string
 	UserID               int
+	Username             string
 	EncryptionPrivateKey *ecdh.PrivateKey
 	SigningPrivateKey     *ecdsa.PrivateKey
 	SessionToken         string

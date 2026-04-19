@@ -97,7 +97,7 @@ func (s *LoginService) reRegisterPublicKeys(ctx context.Context, client *clienta
 	}
 
 	_, err = client.CreateUser(ctx, clientapi.CreateUserInput{
-		ID:                  identity.UserID,
+		Username:            identity.Username,
 		EncryptionPublicKey: encryptionPub,
 		SigningPublicKey:    signingPub,
 	})

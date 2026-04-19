@@ -6,7 +6,7 @@ import (
 )
 
 type FileRepository interface {
-	Create(ctx context.Context, file domain.FileRecord) error
+	Create(ctx context.Context, file domain.FileRecord) (int, error)
 	GetByID(ctx context.Context, id int) (domain.FileRecord, error)
 	Update(ctx context.Context, file domain.FileRecord) error
 	Delete(ctx context.Context, id int) error

@@ -6,11 +6,13 @@ import (
 	"cryptocore/internal/repository"
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 type FileRepository struct {
-	mu    sync.RWMutex
-	files map[int]domain.FileRecord
+	mu      sync.RWMutex
+	files   map[int]domain.FileRecord
+	counter atomic.Int64
 }
 
 func NewFileRepository() *FileRepository {
@@ -19,22 +21,20 @@ func NewFileRepository() *FileRepository {
 	}
 }
 
-func (r *FileRepository) Create(ctx context.Context, file domain.FileRecord) error {
+func (r *FileRepository) Create(ctx context.Context, file domain.FileRecord) (int, error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return 0, ctx.Err()
 	default:
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.files[file.ID]; exists {
-		return repository.ErrFileAlreadyExists
-	}
-
-	r.files[file.ID] = file
-	return nil
+	id := int(r.counter.Add(1))
+	file.ID = id
+	r.files[id] = file
+	return id, nil
 }
 
 func (r *FileRepository) GetByID(ctx context.Context, id int) (domain.FileRecord, error) {

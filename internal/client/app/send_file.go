@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	clientapi "cryptocore/internal/client/api"
 	"cryptocore/internal/client/keystore"
@@ -21,9 +20,8 @@ func NewSendFileService(store *keystore.Store) *SendFileService {
 }
 
 type SendFileInput struct {
-	FileID      int
-	RecipientID int
-	FilePath    string
+	RecipientUsername string
+	FilePath          string
 }
 
 type SendFileOutput struct {
@@ -42,7 +40,7 @@ func (s *SendFileService) Send(ctx context.Context, input SendFileInput) (SendFi
 	}
 
 	apiClient := clientapi.NewClient(identity.ServerURL).WithToken(identity.SessionToken)
-	recipientKeys, err := apiClient.GetUserPublicKeys(ctx, input.RecipientID)
+	recipientKeys, err := apiClient.GetUserPublicKeysByUsername(ctx, input.RecipientUsername)
 	if err != nil {
 		return SendFileOutput{}, err
 	}
@@ -51,8 +49,8 @@ func (s *SendFileService) Send(ctx context.Context, input SendFileInput) (SendFi
 	mimeType := http.DetectContentType(plaintext)
 
 	encryptedContainer, err := container.BuildContainer(container.BuildInput{
-		SenderID:                  strconv.Itoa(identity.UserID),
-		RecipientID:               strconv.Itoa(input.RecipientID),
+		SenderID:                  identity.Username,
+		RecipientID:               input.RecipientUsername,
 		SenderSigningPrivateKey:   identity.SigningPrivateKey,
 		RecipientEncryptionPubKey: recipientKeys.EncryptionPublicKey,
 		Plaintext:                 plaintext,
@@ -71,10 +69,9 @@ func (s *SendFileService) Send(ctx context.Context, input SendFileInput) (SendFi
 		return SendFileOutput{}, err
 	}
 
-	_, err = apiClient.StoreContainer(ctx, clientapi.StoreContainerInput{
-		ID:             input.FileID,
+	storeOut, err := apiClient.StoreContainer(ctx, clientapi.StoreContainerInput{
 		SenderID:       identity.UserID,
-		RecipientID:    input.RecipientID,
+		RecipientID:    recipientKeys.ID,
 		ContainerBytes: rawContainer,
 		FileName:       fileName,
 		MimeType:       mimeType,
@@ -84,5 +81,5 @@ func (s *SendFileService) Send(ctx context.Context, input SendFileInput) (SendFi
 		return SendFileOutput{}, err
 	}
 
-	return SendFileOutput{FileID: input.FileID}, nil
+	return SendFileOutput{FileID: storeOut.ID}, nil
 }

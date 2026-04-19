@@ -22,55 +22,43 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{pool: pool}
 }
 
-func (r *UserRepository) Create(ctx context.Context, user domain.User) error {
+func (r *UserRepository) Create(ctx context.Context, user domain.User) (int, error) {
 	encKey := user.EncryptionPublicKey.Bytes()
 	sigKey, err := x509.MarshalPKIXPublicKey(user.SigningPublicKey)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	_, err = r.pool.Exec(ctx,
-		`INSERT INTO users (id, encryption_public_key, signing_public_key)
-		 VALUES ($1, $2, $3)`,
-		user.ID, encKey, sigKey,
-	)
+	var id int
+	err = r.pool.QueryRow(ctx,
+		`INSERT INTO users (encryption_public_key, signing_public_key, username)
+		 VALUES ($1, $2, $3)
+		 RETURNING id`,
+		encKey, sigKey, user.Username,
+	).Scan(&id)
 	if err != nil {
 		if isDuplicateKey(err) {
-			return repository.ErrUserAlreadyExists
+			return 0, repository.ErrUserAlreadyExists
 		}
-		return err
+		return 0, err
 	}
-	return nil
+	return id, nil
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int) (domain.User, error) {
 	row := r.pool.QueryRow(ctx,
-		`SELECT id, encryption_public_key, signing_public_key FROM users WHERE id = $1`,
+		`SELECT id, username, encryption_public_key, signing_public_key FROM users WHERE id = $1`,
 		id,
 	)
+	return scanUser(row)
+}
 
-	var u domain.User
-	var encKeyBytes, sigKeyBytes []byte
-	if err := row.Scan(&u.ID, &encKeyBytes, &sigKeyBytes); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.User{}, repository.ErrUserNotFound
-		}
-		return domain.User{}, err
-	}
-
-	encKey, err := ecdh.P256().NewPublicKey(encKeyBytes)
-	if err != nil {
-		return domain.User{}, err
-	}
-
-	sigKey, err := parseECDSAPublicKey(sigKeyBytes)
-	if err != nil {
-		return domain.User{}, err
-	}
-
-	u.EncryptionPublicKey = encKey
-	u.SigningPublicKey = sigKey
-	return u, nil
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (domain.User, error) {
+	row := r.pool.QueryRow(ctx,
+		`SELECT id, username, encryption_public_key, signing_public_key FROM users WHERE username = $1`,
+		username,
+	)
+	return scanUser(row)
 }
 
 func (r *UserRepository) Update(ctx context.Context, user domain.User) error {
@@ -81,8 +69,8 @@ func (r *UserRepository) Update(ctx context.Context, user domain.User) error {
 	}
 
 	tag, err := r.pool.Exec(ctx,
-		`UPDATE users SET encryption_public_key = $2, signing_public_key = $3 WHERE id = $1`,
-		user.ID, encKey, sigKey,
+		`UPDATE users SET encryption_public_key = $2, signing_public_key = $3, username = $4 WHERE id = $1`,
+		user.ID, encKey, sigKey, user.Username,
 	)
 	if err != nil {
 		return err
@@ -112,7 +100,7 @@ func (r *UserRepository) Exists(ctx context.Context, id int) (bool, error) {
 
 func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, encryption_public_key, signing_public_key FROM users ORDER BY id`,
+		`SELECT id, username, encryption_public_key, signing_public_key FROM users ORDER BY id`,
 	)
 	if err != nil {
 		return nil, err
@@ -121,27 +109,42 @@ func (r *UserRepository) List(ctx context.Context) ([]domain.User, error) {
 
 	var users []domain.User
 	for rows.Next() {
-		var u domain.User
-		var encKeyBytes, sigKeyBytes []byte
-		if err := rows.Scan(&u.ID, &encKeyBytes, &sigKeyBytes); err != nil {
-			return nil, err
-		}
-
-		encKey, err := ecdh.P256().NewPublicKey(encKeyBytes)
+		u, err := scanUser(rows)
 		if err != nil {
 			return nil, err
 		}
-		sigKey, err := parseECDSAPublicKey(sigKeyBytes)
-		if err != nil {
-			return nil, err
-		}
-
-		u.EncryptionPublicKey = encKey
-		u.SigningPublicKey = sigKey
 		users = append(users, u)
 	}
 
 	return users, rows.Err()
+}
+
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanUser(s scanner) (domain.User, error) {
+	var u domain.User
+	var encKeyBytes, sigKeyBytes []byte
+	if err := s.Scan(&u.ID, &u.Username, &encKeyBytes, &sigKeyBytes); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.User{}, repository.ErrUserNotFound
+		}
+		return domain.User{}, err
+	}
+
+	encKey, err := ecdh.P256().NewPublicKey(encKeyBytes)
+	if err != nil {
+		return domain.User{}, err
+	}
+	sigKey, err := parseECDSAPublicKey(sigKeyBytes)
+	if err != nil {
+		return domain.User{}, err
+	}
+
+	u.EncryptionPublicKey = encKey
+	u.SigningPublicKey = sigKey
+	return u, nil
 }
 
 func parseECDSAPublicKey(b []byte) (*ecdsa.PublicKey, error) {

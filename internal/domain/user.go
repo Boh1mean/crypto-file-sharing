@@ -7,14 +7,15 @@ import (
 
 type User struct {
 	ID                  int
+	Username            string
 	EncryptionPublicKey *ecdh.PublicKey
-	SigningPublicKey    *ecdsa.PublicKey
+	SigningPublicKey     *ecdsa.PublicKey
 }
 
 type CreateUserInput struct {
-	ID                  int
+	Username            string
 	EncryptionPublicKey *ecdh.PublicKey
-	SigningPublicKey    *ecdsa.PublicKey
+	SigningPublicKey     *ecdsa.PublicKey
 }
 
 type CreateUserOutput struct {
@@ -27,6 +28,17 @@ type GetUserPublicKeysInput struct {
 
 type GetUserPublicKeysOutput struct {
 	ID                  int
+	Username            string
 	EncryptionPublicKey *ecdh.PublicKey
-	SigningPublicKey    *ecdsa.PublicKey
+	SigningPublicKey     *ecdsa.PublicKey
+}
+
+type GetUserByUsernameInput struct {
+	Username string
+}
+
+type GetUserByUsernameOutput struct {
+	ID                  int
+	EncryptionPublicKey *ecdh.PublicKey
+	SigningPublicKey     *ecdsa.PublicKey
 }

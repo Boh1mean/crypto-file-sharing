@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -78,4 +79,8 @@ func Run() error {
 	window.ShowAndRun()
 
 	return errors.New("desktop app closed")
+}
+
+func itoa(n int) string {
+	return fmt.Sprintf("%d", n)
 }
