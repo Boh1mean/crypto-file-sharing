@@ -16,6 +16,7 @@ services:
       retries: 10
 
   server:
+    image: ghcr.io/boh1mean/cryptocore:latest
     build: .
     ports:
       - "8080:8080"
