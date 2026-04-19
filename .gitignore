@@ -1,0 +1,28 @@
+# Build output
+server
+/cmd/desktop/desktop
+
+# Go test cache & coverage
+*.test
+*.out
+coverage.html
+
+# Client profile (contains private keys and session tokens)
+~/.config/cryptocore/
+profile.json
+
+# Container data (filesystem storage volume)
+data/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

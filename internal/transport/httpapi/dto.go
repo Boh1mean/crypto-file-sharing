@@ -1,0 +1,66 @@
+package httpapi
+
+type createUserRequest struct {
+	ID                  int    `json:"id"`
+	EncryptionPublicKey string `json:"encryption_public_key"`
+	SigningPublicKey    string `json:"signing_public_key"`
+}
+
+type createUserResponse struct {
+	ID int `json:"id"`
+}
+
+type getUserPublicKeysResponse struct {
+	ID                  int    `json:"id"`
+	EncryptionPublicKey string `json:"encryption_public_key"`
+	SigningPublicKey    string `json:"signing_public_key"`
+}
+
+type storeContainerRequest struct {
+	ID          int    `json:"id"`
+	SenderID    int    `json:"sender_id"`
+	RecipientID int    `json:"recipient_id"`
+	Container   string `json:"container"`
+	FileName    string `json:"file_name"`
+	MimeType    string `json:"mime_type"`
+	Size        int64  `json:"size"`
+}
+
+type storeContainerResponse struct {
+	ID int `json:"id"`
+}
+
+type loadContainerResponse struct {
+	ID          int    `json:"id"`
+	SenderID    int    `json:"sender_id"`
+	RecipientID int    `json:"recipient_id"`
+	Container   string `json:"container"`
+	FileName    string `json:"file_name"`
+	MimeType    string `json:"mime_type"`
+	Size        int64  `json:"size"`
+	CreatedAt   string `json:"created_at"`
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+// Auth DTOs
+
+type createChallengeRequest struct {
+	UserID int `json:"user_id"`
+}
+
+type createChallengeResponse struct {
+	Nonce string `json:"nonce"` // base64
+}
+
+type verifyChallengeRequest struct {
+	UserID    int    `json:"user_id"`
+	Signature string `json:"signature"` // base64
+}
+
+type verifyChallengeResponse struct {
+	SessionToken string `json:"session_token"`
+	ExpiresAt    string `json:"expires_at"`
+}
