@@ -20,7 +20,7 @@ jobs:
         run: go install fyne.io/tools/cmd/fyne@latest
 
       - name: Build
-        run: fyne package -os windows -src ./cmd/desktop -name CryptoCore -appID com.cryptocore.app
+        run: fyne package --target windows --src ./cmd/desktop --name CryptoCore --app-id com.cryptocore.app
 
       - name: List files
         run: Get-ChildItem -Recurse -Filter "*.exe" | Select-Object FullName
