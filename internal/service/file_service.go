@@ -94,6 +94,33 @@ func (s *FileService) LoadContainer(
 	}, nil
 }
 
+// ListInbox возвращает метаданные всех файлов, адресованных пользователю.
+// Содержимое контейнеров не загружается.
+func (s *FileService) ListInbox(ctx context.Context, recipientID int) ([]domain.InboxItem, error) {
+	records, err := s.files.ListByRecipientID(ctx, recipientID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]domain.InboxItem, 0, len(records))
+	for _, r := range records {
+		senderUsername := "unknown"
+		if sender, err := s.users.GetByID(ctx, r.SenderID); err == nil {
+			senderUsername = sender.Username
+		}
+		items = append(items, domain.InboxItem{
+			ID:             r.ID,
+			SenderID:       r.SenderID,
+			SenderUsername: senderUsername,
+			FileName:       r.FileName,
+			MimeType:       r.MimeType,
+			Size:           r.Size,
+			CreatedAt:      r.CreatedAt,
+		})
+	}
+	return items, nil
+}
+
 func generateStorageKey() (string, error) {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {

@@ -37,6 +37,8 @@ func NewRouter(users *service.UserService, files *service.FileService, auth *ser
 		requireAuth(http.HandlerFunc(handler.GetUserByUsername)))
 	mux.Handle("POST /files",
 		requireAuth(LimitBody(largeBodyLimit)(http.HandlerFunc(handler.StoreContainer))))
+	mux.Handle("GET /files/inbox",
+		requireAuth(http.HandlerFunc(handler.ListInbox)))
 	mux.Handle("GET /files/{id}",
 		requireAuth(http.HandlerFunc(handler.LoadContainer)))
 

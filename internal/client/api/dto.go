@@ -46,6 +46,16 @@ type loadContainerResponse struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+type inboxItemResponse struct {
+	ID             int    `json:"id"`
+	SenderID       int    `json:"sender_id"`
+	SenderUsername string `json:"sender_username"`
+	FileName       string `json:"file_name"`
+	MimeType       string `json:"mime_type"`
+	Size           int64  `json:"size"`
+	CreatedAt      string `json:"created_at"`
+}
+
 type errorResponse struct {
 	Error string `json:"error"`
 }

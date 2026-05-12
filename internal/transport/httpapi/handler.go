@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"cryptocore/internal/core/crypto"
 	"cryptocore/internal/domain"
@@ -191,6 +192,35 @@ func (h *Handler) LoadContainer(w http.ResponseWriter, r *http.Request) {
 		Size:        out.Size,
 		CreatedAt:   out.CreatedAt.UTC().Format(http.TimeFormat),
 	})
+}
+
+func (h *Handler) ListInbox(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+
+	items, err := h.files.ListInbox(r.Context(), userID)
+	if err != nil {
+		writeMappedError(w, err)
+		return
+	}
+
+	resp := make([]inboxItemResponse, len(items))
+	for i, item := range items {
+		resp[i] = inboxItemResponse{
+			ID:             item.ID,
+			SenderID:       item.SenderID,
+			SenderUsername: item.SenderUsername,
+			FileName:       item.FileName,
+			MimeType:       item.MimeType,
+			Size:           item.Size,
+			CreatedAt:      item.CreatedAt.UTC().Format(time.RFC3339),
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func parseIDParam(raw string) (int, error) {

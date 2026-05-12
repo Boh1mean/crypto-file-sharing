@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	clientapi "cryptocore/internal/client/api"
 	"cryptocore/internal/client/keystore"
@@ -16,6 +17,14 @@ type ReceiveFileService struct {
 
 func NewReceiveFileService(store *keystore.Store) *ReceiveFileService {
 	return &ReceiveFileService{store: store}
+}
+
+type InboxItem struct {
+	ID             int
+	SenderUsername string
+	FileName       string
+	Size           int64
+	CreatedAt      time.Time
 }
 
 type ReceiveFileInput struct {
@@ -72,4 +81,29 @@ func (s *ReceiveFileService) Receive(ctx context.Context, input ReceiveFileInput
 		FileID:         input.FileID,
 		OutputFilePath: outputFilePath,
 	}, nil
+}
+
+func (s *ReceiveFileService) ListInbox(ctx context.Context) ([]InboxItem, error) {
+	identity, err := s.store.LoadIdentity()
+	if err != nil {
+		return nil, err
+	}
+
+	apiClient := clientapi.NewClient(identity.ServerURL).WithToken(identity.SessionToken)
+	apiItems, err := apiClient.ListInbox(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]InboxItem, len(apiItems))
+	for i, a := range apiItems {
+		items[i] = InboxItem{
+			ID:             a.ID,
+			SenderUsername: a.SenderUsername,
+			FileName:       a.FileName,
+			Size:           a.Size,
+			CreatedAt:      a.CreatedAt,
+		}
+	}
+	return items, nil
 }

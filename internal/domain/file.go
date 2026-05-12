@@ -40,3 +40,13 @@ type LoadContainerOutput struct {
 	Size           int64
 	CreatedAt      time.Time
 }
+
+type InboxItem struct {
+	ID             int
+	SenderID       int
+	SenderUsername string
+	FileName       string
+	MimeType       string
+	Size           int64
+	CreatedAt      time.Time
+}
