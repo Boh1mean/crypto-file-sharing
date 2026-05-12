@@ -4,7 +4,10 @@
       "Bash(go build:*)",
       "Bash(go test:*)",
       "Bash(sed -i '' 's|GET /users/{id}/public-keys|GET /users/{id}|g' \"/Users/danilknyazkin/Documents/ИВТ/Диплом/Мой Диплом/CrytoCore/internal/transport/httpapi/router.go\")",
-      "Bash(sed -i '' 's|/users/%d/public-keys|/users/%d|g' \"/Users/danilknyazkin/Documents/ИВТ/Диплом/Мой Диплом/CrytoCore/internal/client/api/users.go\")"
+      "Bash(sed -i '' 's|/users/%d/public-keys|/users/%d|g' \"/Users/danilknyazkin/Documents/ИВТ/Диплом/Мой Диплом/CrytoCore/internal/client/api/users.go\")",
+      "Bash(python3 -c \"import docx; print\\('python-docx available'\\)\")",
+      "Bash(pip3 install:*)",
+      "Bash(python3:*)"
     ]
   }
 }

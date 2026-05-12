@@ -70,7 +70,6 @@ func (s *SendFileService) Send(ctx context.Context, input SendFileInput) (SendFi
 	}
 
 	storeOut, err := apiClient.StoreContainer(ctx, clientapi.StoreContainerInput{
-		SenderID:       identity.UserID,
 		RecipientID:    recipientKeys.ID,
 		ContainerBytes: rawContainer,
 		FileName:       fileName,

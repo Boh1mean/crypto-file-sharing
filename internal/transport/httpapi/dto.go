@@ -24,7 +24,6 @@ type getUserByUsernameResponse struct {
 }
 
 type storeContainerRequest struct {
-	SenderID    int    `json:"sender_id"`
 	RecipientID int    `json:"recipient_id"`
 	Container   string `json:"container"`
 	FileName    string `json:"file_name"`

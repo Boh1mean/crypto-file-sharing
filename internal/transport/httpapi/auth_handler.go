@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -72,12 +73,16 @@ func (h *AuthHandler) VerifyChallenge(w http.ResponseWriter, r *http.Request) {
 func writeMappedAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrChallengeExpired):
+		slog.Warn("auth: challenge expired or not found")
 		writeError(w, http.StatusUnauthorized, err)
 	case errors.Is(err, service.ErrInvalidSignature):
+		slog.Warn("auth: invalid challenge signature")
 		writeError(w, http.StatusUnauthorized, err)
 	case errors.Is(err, service.ErrSessionExpired):
+		slog.Warn("auth: session expired")
 		writeError(w, http.StatusUnauthorized, err)
 	case errors.Is(err, service.ErrSessionNotFound):
+		slog.Warn("auth: session not found")
 		writeError(w, http.StatusUnauthorized, err)
 	default:
 		writeMappedError(w, err)

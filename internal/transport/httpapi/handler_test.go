@@ -77,12 +77,12 @@ func TestHTTPAPI_StoreAndLoadContainer_Success(t *testing.T) {
 	router := newTestRouter()
 
 	user1ID, signingPriv1 := registerUser(t, router, "user1")
-	user2ID, _ := registerUser(t, router, "user2")
-	token := getSessionToken(t, router, user1ID, signingPriv1)
+	user2ID, signingPriv2 := registerUser(t, router, "user2")
+	senderToken := getSessionToken(t, router, user1ID, signingPriv1)
+	recipientToken := getSessionToken(t, router, user2ID, signingPriv2)
 
 	containerBytes := []byte(`{"version":"v1","ciphertext":"abc"}`)
 	storeReq := storeContainerRequest{
-		SenderID:    user1ID,
 		RecipientID: user2ID,
 		Container:   base64.StdEncoding.EncodeToString(containerBytes),
 		FileName:    "hello.txt",
@@ -90,7 +90,7 @@ func TestHTTPAPI_StoreAndLoadContainer_Success(t *testing.T) {
 		Size:        31,
 	}
 
-	rec := performJSONRequest(t, router, http.MethodPost, "/files", storeReq, token)
+	rec := performJSONRequest(t, router, http.MethodPost, "/files", storeReq, senderToken)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("unexpected status: got %d want %d, body=%s", rec.Code, http.StatusCreated, rec.Body.String())
 	}
@@ -103,7 +103,8 @@ func TestHTTPAPI_StoreAndLoadContainer_Success(t *testing.T) {
 		t.Fatal("expected non-zero generated file ID")
 	}
 
-	rec = performRequest(t, router, http.MethodGet, fmt.Sprintf("/files/%d", storeResp.ID), nil, token)
+	// Файл должен загружать получатель (user2), а не отправитель.
+	rec = performRequest(t, router, http.MethodGet, fmt.Sprintf("/files/%d", storeResp.ID), nil, recipientToken)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("unexpected status: got %d want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
@@ -128,7 +129,6 @@ func TestHTTPAPI_StoreContainer_FailsWhenRecipientMissing(t *testing.T) {
 	token := getSessionToken(t, router, user1ID, signingPriv1)
 
 	rec := performJSONRequest(t, router, http.MethodPost, "/files", storeContainerRequest{
-		SenderID:    user1ID,
 		RecipientID: 99999,
 		Container:   base64.StdEncoding.EncodeToString([]byte(`{"version":"v1"}`)),
 		FileName:    "hello.txt",

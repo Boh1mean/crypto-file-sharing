@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -117,6 +118,12 @@ func (h *Handler) GetUserByUsername(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StoreContainer(w http.ResponseWriter, r *http.Request) {
+	senderID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+
 	var req storeContainerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -130,7 +137,7 @@ func (h *Handler) StoreContainer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := h.files.StoreContainer(r.Context(), domain.StoreContainerInput{
-		SenderID:       req.SenderID,
+		SenderID:       senderID,
 		RecipientID:    req.RecipientID,
 		ContainerBytes: containerBytes,
 		FileName:       req.FileName,
@@ -146,6 +153,12 @@ func (h *Handler) StoreContainer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) LoadContainer(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+
 	id, err := parseIDParam(r.PathValue("id"))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -155,6 +168,16 @@ func (h *Handler) LoadContainer(w http.ResponseWriter, r *http.Request) {
 	out, err := h.files.LoadContainer(r.Context(), domain.LoadContainerInput{ID: id})
 	if err != nil {
 		writeMappedError(w, err)
+		return
+	}
+
+	if out.RecipientID != userID {
+		slog.Warn("access denied: user is not the file recipient",
+			"user_id", userID,
+			"file_id", id,
+			"recipient_id", out.RecipientID,
+		)
+		writeError(w, http.StatusForbidden, errors.New("access denied"))
 		return
 	}
 
@@ -222,7 +245,12 @@ func writeMappedError(w http.ResponseWriter, err error) {
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
-	writeJSON(w, status, errorResponse{Error: err.Error()})
+	msg := err.Error()
+	if status >= http.StatusInternalServerError {
+		slog.Error("internal server error", "err", err)
+		msg = "internal server error"
+	}
+	writeJSON(w, status, errorResponse{Error: msg})
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
